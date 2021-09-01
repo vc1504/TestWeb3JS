@@ -1,53 +1,61 @@
 import React, {Component} from 'react';
 import Button from './component/Button';
 import Label from './component/Label';
-import Web3 from 'web3';
+import web3 from './component/Web3Js';
 
 
 
 class MainApp extends Component{
+
     async componentWillMount(){
-        await this.loadWeb3();
-    }
+        if(web3){
+            await window.ethereum.enable().then(this.handleAccountsChanged);
+        }
 
-    async loadWeb3(){
-        let web3 = new Web3(Web3.givenProvider);
-        const networkId = await web3.eth.net.getId();
-        const network = await web3.eth.net.getNetworkType();
-        await window.ethereum.enable();
-
-        if(networkId !== 42){
-            this.setState({
-                networktext : "You are on " + network + " network. Click on change button to change to kovan.",
-                viewbalancedisabled: 'disabled',
-                changedisabled:''
-            });
+        if( await web3.eth.net.getId() !== 42){
+           this.enableSwitching();
         }
         else{
-            this.setState({
-                networktext : "You are on " + network + " network. Click on view balance button.",
-                viewbalancedisabled: '',
-                changedisabled:'disabled'
-            });
+            this.enableCheckBalance();
         }
+    }
+
+    handleAccountsChanged(){
+        window.ethereum.on('chainChanged', _chainId => window.location.reload());
     }
 
     async viewBalance(){
-        let web3 = new Web3(Web3.givenProvider);
         const accounts = await web3.eth.getAccounts();
-        const balance = await web3.eth.getBalance(accounts[0]);
+        const balance = web3.utils.fromWei(await web3.eth.getBalance(accounts[0]));
         this.setState({
             networktext : "Your Balance is " + balance
         });
     }
 
     async changeNetwork(){
-        let web3 = new Web3(Web3.givenProvider);
+        await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x2a' }],
+        });
         
-        web3.setProvider(new Web3.providers.HttpProvider('https://kovan.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'));
-        await window.ethereum.enable();
-        console.log(await web3.eth.net.getNetworkType());
-        
+    }
+
+    async enableCheckBalance(){
+        let network = await web3.eth.net.getNetworkType();
+        this.setState({
+            networktext : "You are on " + network + " network. Click on view balance button.",
+            viewbalancedisabled: '',
+            changedisabled:'disabled'
+        })
+    }
+
+    async enableSwitching(){
+        let network = await web3.eth.net.getNetworkType();
+        this.setState({
+            networktext : "You are on " + network + " network. Click on change button to change to kovan.",
+            viewbalancedisabled: 'disabled',
+            changedisabled:''
+        });
     }
 
     constructor(props) {
@@ -57,7 +65,7 @@ class MainApp extends Component{
             viewbalancedisabled: '',
             changedisabled:''
         }
-      }
+    }
 
     render(){
         return(
@@ -66,7 +74,7 @@ class MainApp extends Component{
                 <span><Button id="viewBalance" classname="btn" label="View Balance" disabled={this.state.viewbalancedisabled} onClick={async () => {await this.viewBalance();} } /></span>
                 <span><Button id="change" classname="btn-sec" label="Change" disabled={this.state.changedisabled} onClick={async () =>{await this.changeNetwork()}} /></span>              
             </div>
-            
+
         )
     }
 }
